@@ -6,31 +6,27 @@ import mysql.connector
 def get_conn():
     return mysql.connector.connect(
         host="localhost",
-        user="root",
-        password="phdpython22!",
-        database="brake_analysis"
+       user="root",
+         password="phdpython22!",
+          database="brake_analysis"
     )
 
-def save_simulation_to_db(material, params, summary):
+def save_simulation_to_db(material, params, results):
     try:
         conn = get_conn()
         cursor = conn.cursor()
 
-        sql = """
-        INSERT INTO simulations
-        (material, rho, k, alpha, surface_peak, back_peak, avg_final, peak_stress)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
+        sql = """INSERT INTO simulations (material, rho, k, alpha, surface_peak, back_peak, avg_final, peak_stress) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) """
 
         vals = (
-            material,
-            params["rho"],
-            params["k"],
-            params["alpha"],
-            summary["surface_peak"],
-            summary["back_peak"],
-            summary["avg_final"],
-            summary["peak_stress"]
+          material,
+         params["rho"],
+        params["k"],
+          params["alpha"],
+        results["surface_peak"],
+         results["back_peak"],
+        results["avg_final"],
+        results["peak_stress"]
         )
 
         cursor.execute(sql, vals)
@@ -39,17 +35,16 @@ def save_simulation_to_db(material, params, summary):
         conn.close()
 
     except Exception as e:
-        print("Failed to save simulation:", e)
+           print("Failed to save simulation:", e)
 
 
 def braking_energy(M, v):
-    return 0.5 * M * v**2
+  return 0.5 * M * v**2
 
 def disc_area_from_diameter(D_outer, inner_frac=0.5):
     Ro = D_outer / 2
     Ri = inner_frac * Ro
     return math.pi * (Ro**2 - Ri**2), Ro, Ri
-
 def simple_temperature_model(q_in, k, rho, cp, t_brake, T_amb):
     alpha = k / (rho * cp)
 
@@ -67,13 +62,9 @@ class App:
         self.root = root
         root.title("Brake Disc Thermal Analysis — Steel 15CDv6")
         root.geometry("1000x600")
-        title = tk.Label(root, text="Brake Disc Thermal Analysis — Steel 15CDv6",
-                         bg="#003366",
-                         fg="white",
-                         font=("Arial", 18, "bold"),
-                         pady=10)
+        title = tk.Label(root, text="Brake Disc Thermal Analysis — Steel 15CDv6",bg="#003366",  fg="white",  font=("Arial", 18, "bold"),   pady=10)
         title.pack(fill="x")
-        # END ADD
+        
         self.build_ui()
 
     def build_ui(self):
@@ -84,16 +75,17 @@ class App:
         params = [
             ("Mass (kg)", "10000"),
             ("Speed (m/s)", "40"),
-            ("Braking time (s)", "5"),
-            ("Young's modulus (GPa)", "210"),            
-            ("Heat capacity c (J/kgK)", "460"),
-            ("Diameter (m)", "1.0"),
-            ("Convection coeff h (W/m2K)", "100"),
-            ("Ambient T (°C)", "24"),
+             ("Braking time (s)", "5"),
+            ("brake disc mass (kg)", "55"),
+              ("Young's modulus (GPa)", "210"),            
+             ("Heat capacity c (J/kgK)", "460"),
+             ("Diameter (m)", "1.0"),
+             ("Convection coeff h (W/m2K)", "100"),
+             ("Ambient T (°C)", "24"),
             ("Density ρ (kg/m3)", "7800"),
             ("Conductivity k (W/mK)", "35"),
-            ("Expansion α (1/K)", "1.3e-5"),
-            ("Friction coefficient μ", "0.4"),
+             ("Expansion α (1/K)", "1.3e-5"),
+             ("Friction coefficient μ", "0.4"),
         ]
 
         for lbl, val in params:
@@ -121,6 +113,7 @@ class App:
             M = float(self.entries["Mass (kg)"].get())
             v = float(self.entries["Speed (m/s)"].get())
             t_brake = float(self.entries["Braking time (s)"].get())
+            bm =float(self.entries["brake disc mass (kg)"].get())
             E = float(self.entries["Young's modulus (GPa)"].get()) * 1e9
             c = float(self.entries["Heat capacity c (J/kgK)"].get())
             D = float(self.entries["Diameter (m)"].get())
@@ -131,30 +124,26 @@ class App:
             alpha = float(self.entries["Expansion α (1/K)"].get())
             mu = float(self.entries["Friction coefficient μ"].get())
 
-            
+
             A_contact, Ro, Ri = disc_area_from_diameter(D)
 
             Ek = braking_energy(M, v)
             Q_disc = Ek / 2
             q0 = Q_disc / (A_contact * t_brake)
 
-            surface_peak, back_peak, avg_final = simple_temperature_model(
-                q0, k, rho, c, t_brake, T_amb
-            )
+            surface_peak, back_peak, avg_final = simple_temperature_model( q0, k, rho, c, t_brake, T_amb )
 
             peak_stress = calculate_thermal_stress(surface_peak, T_amb, alpha, E) / 1e6
 
             params_dict = {"rho": rho, "k": k, "alpha": alpha}
-            summary = {
-                "surface_peak": surface_peak,
-                "back_peak": back_peak,
-                "avg_final": avg_final,
-                "peak_stress": peak_stress
-            }
+            result = { "surface_peak": surface_peak,
+                 "back_peak": back_peak,
+                  "avg_final": avg_final,
+                 "peak_stress": peak_stress }
 
-            save_simulation_to_db("Steel 15CDv6", params_dict, summary)
+            save_simulation_to_db("Steel 15CDv6", params_dict, result)
             txt = f"""
-=== SIMULATION RESULTS ===
+ #SIMULATION RESULTS
 
 ρ: {rho}
 k: {k}
@@ -164,8 +153,7 @@ k: {k}
 Peak surface T: {surface_peak:.2f} °C
 Peak back-face T: {back_peak:.2f} °C
 Final average T: {avg_final:.2f} °C
-
-Peak thermal stress: {peak_stress:.2f} MPa
+  Peak thermal stress: {peak_stress:.2f} MPa
 
 (Simulation saved to MySQL)
 """
